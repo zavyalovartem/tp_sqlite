@@ -1,0 +1,76 @@
+import sqlite3
+
+
+def create_and_fill_tables(con, netflix_conn):
+    with con:
+        cursor = con.cursor()
+        cursor.execute("""CREATE TABLE IF NOT EXISTS shows(
+        show_id int PRIMARY KEY,
+        title text,
+        date_added varchar(60),
+        release_year int check(release_year <= 2020),
+        rating varchar(15),
+        type varchar(20)  check(type in ('Seasons', 'Minutes')),
+        duration int,
+        description text)""")
+
+        cursor.execute("""create table if not exists directors(
+        director varchar(100),
+        show_id int,
+        primary key(director, show_id),
+        FOREIGN KEY(show_id) REFERENCES shows(show_id))""")
+
+        cursor.execute("""create table if not exists actors(
+        actor varchar(100),
+        show_id int,
+        primary key(actor, show_id),
+        FOREIGN KEY(show_id) REFERENCES shows(show_id))""")
+
+        cursor.execute("""create table if not exists genres(
+        show_id int,
+        genre varchar(100),
+        primary key(genre, show_id),
+        FOREIGN KEY(show_id) REFERENCES shows(show_id))""")
+
+        cursor.execute("""create table if not exists countries(
+            show_id int,
+            country varchar(100),
+            primary key(country, show_id),
+            FOREIGN KEY(show_id) REFERENCES shows(show_id))""")
+
+        for row in netflix_conn.execute("""select * from netflix_titles"""):
+            show_id, type, title, director, cast, country, date_added, release_year, rating, duration, genres, desc = row
+            if 'min' in duration:
+                duration_type = 'Minutes'
+            else:
+                duration_type = 'Seasons'
+
+            duration = int(duration.split(' ')[0])
+
+            shows = show_id, title, date_added, release_year, rating, duration_type, duration, desc
+            cursor.execute("""insert into shows values (?,?,?,?,?,?,?,?)""", shows)
+
+            for c in set(country.split(', ')):
+                if c != '':
+                    val = c, show_id
+                    cursor.execute("""insert into countries values (?,?)""", val)
+
+            for c in set(cast.split(', ')):
+                if c != '':
+                    val = c, show_id
+                    cursor.execute("""insert into actors values (?,?)""", val)
+
+            for c in set(genres.split(', ')):
+                if c != '':
+                    val = c, show_id
+                    cursor.execute("""insert into genres values (?,?)""", val)
+
+            for c in set(director.split(', ')):
+                if c != '':
+                    val = c, show_id
+                    cursor.execute("""insert into directors values (?,?)""", val)
+
+
+netflix_conn = sqlite3.connect('netflix.sqlite')
+con = sqlite3.connect('new_netflix.sqlite')
+create_and_fill_tables(con, netflix_conn)
